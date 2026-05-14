@@ -68,6 +68,16 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         return result;
     }
 
+    private boolean hasGlassOrTorch(ItemStack[] matrix) {
+        for (int i = 0; i < 9; i++) {
+            ItemStack item = matrix[i];
+            if (item != null && (item.getType() == Material.GLASS || item.getType() == Material.TORCH)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private int validateMatrix(ItemStack[] matrix) {
         ItemStack center = matrix[CENTER_SLOT];
         if (center == null || center.getType() != Material.GLASS || center.getAmount() < 1) {
@@ -118,6 +128,8 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         for (int i = 0; i < 9; i++) {
             matrix[i] = inv.getItem(i);
         }
+
+        if (!hasGlassOrTorch(matrix)) return;
 
         int torchCount = validateMatrix(matrix);
         if (torchCount < 1) {
