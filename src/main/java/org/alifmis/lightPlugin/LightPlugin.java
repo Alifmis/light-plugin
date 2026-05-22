@@ -109,7 +109,10 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         InventoryType type = event.getView().getType();
         if (type != InventoryType.WORKBENCH && type != InventoryType.CRAFTER) return;
 
-        int torchCount = validateMatrix(inv.getMatrix());
+        ItemStack[] matrix = inv.getMatrix();
+        if (!hasGlassOrTorch(matrix)) return;
+
+        int torchCount = validateMatrix(matrix);
         if (torchCount < 1) {
             inv.setResult(null);
             return;
