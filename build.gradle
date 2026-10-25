@@ -20,6 +20,7 @@ dependencies {
 
 tasks {
     runServer {
+        // only the Minecraft version is required; the built jar is used automatically
         minecraftVersion("1.21")
     }
 }

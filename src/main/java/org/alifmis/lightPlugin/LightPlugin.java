@@ -25,6 +25,7 @@ import java.util.Map;
 
 public final class LightPlugin extends JavaPlugin implements Listener {
 
+    // 3x3 matrix: slot 4 is the center glass; slots 0-3 and 5-8 are surrounding (torch or empty)
     private static final int CENTER_SLOT = 4;
     private static final int[] SURROUNDING = {0, 1, 2, 3, 5, 6, 7, 8};
 
@@ -68,6 +69,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         return result;
     }
 
+    // True if the matrix contains any glass or torch, a potential light recipe attempt
     private boolean hasGlassOrTorch(ItemStack[] matrix) {
         for (int i = 0; i < 9; i++) {
             ItemStack item = matrix[i];
@@ -78,6 +80,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         return false;
     }
 
+    // Torch count if the matrix is a valid light recipe (glass centered, torches around), else -1
     private int validateMatrix(ItemStack[] matrix) {
         ItemStack center = matrix[CENTER_SLOT];
         if (center == null || center.getType() != Material.GLASS || center.getAmount() < 1) {
@@ -109,6 +112,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         InventoryType type = event.getView().getType();
         if (type != InventoryType.WORKBENCH && type != InventoryType.CRAFTER) return;
 
+        // Only intervene when the grid contains glass or a torch; otherwise vanilla computes the result
         ItemStack[] matrix = inv.getMatrix();
         if (!hasGlassOrTorch(matrix)) return;
 
@@ -121,6 +125,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         inv.setResult(makeLightItem(torchCount));
     }
 
+    // Crafter auto-craft: validate the matrix and set the result to the matching light level
     @EventHandler(priority = EventPriority.NORMAL)
     public void onCrafterCraft(CrafterCraftEvent event) {
         BlockState state = event.getBlock().getState();
@@ -132,6 +137,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
             matrix[i] = inv.getItem(i);
         }
 
+        // Skip crafts with no glass or torches so other plugins can handle them
         if (!hasGlassOrTorch(matrix)) return;
 
         int torchCount = validateMatrix(matrix);
@@ -143,6 +149,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         event.setResult(makeLightItem(torchCount));
     }
 
+    // LOWEST priority: runs before CraftItemEvent and blocks the server's own craft processing
     @EventHandler(priority = EventPriority.LOWEST)
     public void onCraftClick(InventoryClickEvent event) {
         if (!(event.getInventory() instanceof CraftingInventory inv)) return;
@@ -152,6 +159,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         ItemStack current = event.getCurrentItem();
         if (current == null || current.getType() != Material.LIGHT) return;
 
+        // Cancel before CraftItemEvent so no handler sees the event as allowed
         event.setCancelled(true);
 
         ItemStack[] matrix = inv.getMatrix();
@@ -172,6 +180,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         Player player = (Player) event.getWhoClicked();
 
         if (event.isShiftClick()) {
+            // Shift-click: craft as many as fit into the inventory, leave the excess in the grid
             doShiftCraft(inv, matrix, torchCount, maxCrafts, player);
         } else {
             // Left-click or right-click: craft 1 to cursor.
@@ -207,6 +216,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
             // Stack with cursor
             cursor.setAmount(cursor.getAmount() + 1);
         } else {
+            // Different or full cursor: add to inventory, drop at feet if it does not fit
             Map<Integer, ItemStack> leftover = player.getInventory().addItem(oneCraft);
             for (ItemStack drop : leftover.values()) {
                 player.getWorld().dropItem(player.getLocation(), drop);
@@ -216,6 +226,7 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         consumeIngredients(inv, matrix, 1);
     }
 
+    // Use inv.setItem() (not setMatrix()) to avoid the n->(n-1)*2 doubling bug
     private void consumeIngredients(CraftingInventory inv, ItemStack[] matrix, int crafts) {
         // Consume glass (center, slot index 4)
         ItemStack center = matrix[CENTER_SLOT];
