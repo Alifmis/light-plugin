@@ -1,6 +1,7 @@
 package org.alifmis.lightPlugin;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Keyed;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.BlockState;
@@ -17,6 +18,7 @@ import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.inventory.meta.BlockDataMeta;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -69,13 +71,11 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         return result;
     }
 
-    // True if the matrix contains any glass or torch, a potential light recipe attempt
-    private boolean hasGlassOrTorch(ItemStack[] matrix) {
-        for (int i = 0; i < 9; i++) {
-            ItemStack item = matrix[i];
-            if (item != null && (item.getType() == Material.GLASS || item.getType() == Material.TORCH)) {
-                return true;
-            }
+    private boolean isOurRecipe(Recipe recipe) {
+        if (recipe instanceof Keyed keyed) {
+            NamespacedKey key = keyed.getKey();
+            return key.getNamespace().equals(getName().toLowerCase())
+                && key.getKey().startsWith("light_");
         }
         return false;
     }
@@ -112,10 +112,11 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         InventoryType type = event.getView().getType();
         if (type != InventoryType.WORKBENCH && type != InventoryType.CRAFTER) return;
 
-        // Only intervene when the grid contains glass or a torch; otherwise vanilla computes the result
-        ItemStack[] matrix = inv.getMatrix();
-        if (!hasGlassOrTorch(matrix)) return;
+        Recipe matchedRecipe = event.getRecipe();
 
+        if (!isOurRecipe(matchedRecipe)) return;
+
+        ItemStack[] matrix = inv.getMatrix();
         int torchCount = validateMatrix(matrix);
         if (torchCount < 1) {
             inv.setResult(null);
@@ -131,14 +132,13 @@ public final class LightPlugin extends JavaPlugin implements Listener {
         BlockState state = event.getBlock().getState();
         if (!(state instanceof InventoryHolder holder)) return;
 
+        if (!isOurRecipe(event.getRecipe())) return;
+
         Inventory inv = holder.getInventory();
         ItemStack[] matrix = new ItemStack[9];
         for (int i = 0; i < 9; i++) {
             matrix[i] = inv.getItem(i);
         }
-
-        // Skip crafts with no glass or torches so other plugins can handle them
-        if (!hasGlassOrTorch(matrix)) return;
 
         int torchCount = validateMatrix(matrix);
         if (torchCount < 1) {
